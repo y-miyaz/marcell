@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# marcell - マークダウン変換ツール
+
+# スクリプトの絶対パスを取得
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# プロジェクトのルートディレクトリ（スクリプトの親ディレクトリ）
+PROJECT_ROOT="$( dirname "$SCRIPT_DIR" )"
+
+# PYTHONPATHにプロジェクトルートを追加
+export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+
+# main.pyを実行し、すべての引数を渡す
+python3 "$PROJECT_ROOT/src/app.py" "$@"
