@@ -9,6 +9,25 @@ Marcellは様々なファイル形式（Excel、Word、PowerPoint、PDF）をマ
 - 単一ファイルおよびディレクトリの一括処理に対応
 - 並列処理による高速な変換とAI処理
 
+## 処理フロー
+```mermaid
+flowchart TD
+  A[入力ファイル] --> B{ファイル分類}
+  B -->|Excel| C1[データフレームに変換（pandas）]
+  C1 -->|データフレーム| C2[データ前処理]
+  C2 -->|データフレーム| C3[マークダウン変換（pandas）]
+  B -->|その他| D[マークダウン変換（MarkItDown）]
+  B -->|マークダウン| E{AI処理設定}
+  C3 -->|マークダウン| E
+  D -->|マークダウン| E
+  E -->|使用しない| G[ファイル出力]
+  E -->|使用する| F{AIプロバイダ選択}
+  F -->|OpenAI| F1[OpenAIによる整形]
+  F -->|DeepSeek| F2[DeepSeekによる整形]
+  F1 --> |マークダウン| G
+  F2 --> |マークダウン| G
+```
+
 ## インストール
 
 ### 必要条件
@@ -25,22 +44,39 @@ pip install -r requirements.txt
 1. リポジトリをクローン:
 
 ```bash
-git clone https://github.com/yourusername/marcell.git
+git clone https://github.com/y-miyaz/marcell.git
 cd marcell
 ```
 
 2. 環境変数を設定（`.env`ファイルを作成するか、システム環境変数を設定）:
-
+OpenAI API, DeepSeek APIの設定及び、生成AIによるフォーマット対象の拡張子を環境変数に定義します。
 ```
-OPENAI_API_KEY=your_openai_api_key
-OPENAI_MODEL=gpt-4o-mini
-OPENAI_RATE_LIMIT_DELAY=1.0
-OPENAI_MAX_TOKENS=3000
+# OpenAI API Key - Replace with your actual key
+OPENAI_API_KEY=your_openai_api_key_here
 
-DEEPSEEK_API_KEY=your_deepseek_api_key
+# OpenAI Model to use
+OPENAI_MODEL=o3-mini
+
+# API Request rate limit (seconds between requests)
+OPENAI_RATE_LIMIT_DELAY=1.0
+
+# OpenAI Max Tokens
+OPENAI_MAX_TOKENS=8192
+
+# DeepSeek API Key
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+
+# DeepSeek Model to use
 DEEPSEEK_MODEL=deepseek-chat
+
+# API Request rate limit (seconds between requests)
 DEEPSEEK_RATE_LIMIT_DELAY=1.0
-DEEPSEEK_MAX_TOKENS=3000
+
+# DeepSeek Max Tokens
+DEEPSEEK_MAX_TOKENS=8192
+
+# AI format Supported Extension
+AI_SUPPORTED_EXTENSIONS=.xlsx,.xls,.xlsm
 ```
 
 3. コマンドラインから実行できるようにする:
@@ -104,10 +140,6 @@ marcell -d input_directory --use-ai --ai-provider deepseek
                         フォーマットに使用するAIプロバイダ (デフォルト: openai)
   --prompts-file PROMPTS_FILE
                         異なるファイルタイプのプロンプトを含むYAMLファイルへのパス
-  --max-tokens MAX_TOKENS
-                        AI使用時のチャンクあたりの最大トークン数 (デフォルト: 3000)
-  --rate-limit-delay RATE_LIMIT_DELAY
-                        APIリクエスト間の待機秒数 (デフォルト: .envファイルから、または1.0秒)
 ```
 
 ## サポートされているファイル形式
@@ -116,33 +148,12 @@ marcell -d input_directory --use-ai --ai-provider deepseek
 - Word (.docx)
 - PowerPoint (.pptx)
 - PDF (.pdf)
-- Markdown (.md) - フォーマットのみ
-
-## プロジェクト構造
-
-```
-src/
-├── app.py                   # メインアプリケーション
-├── bin/                      # コマンドラインツール
-│   ├── marcell              # Unix用シェルスクリプト
-│   ├── marcell.ps1          # Windows用PowerShellスクリプト
-│   └── marcell.bat          # Windows用バッチファイル
-├── converter/                # ファイル変換モジュール
-│   ├── converter_interface.py  # コンバーターインターフェース
-│   ├── file_converter.py       # 一般ファイル変換器
-│   └── excel_converter.py      # Excel専用変換器
-├── formatter/                # マークダウン整形モジュール
-│   ├── formatter_interface.py  # フォーマッターインターフェース
-│   ├── openai_formatter.py     # OpenAI用フォーマッター
-│   └── deepseek_formatter.py   # Deepseek用フォーマッター
-└── utils/                    # ユーティリティ関数
-    ├── logging_config.py     # ロギング設定
-    └── formatter_utils.py    # フォーマッター共通ユーティリティ
-```
+- Markdown (.md) - 生成AIによるフォーマットのみ
 
 ## プロンプト設定
 
-`prompts.yaml`ファイルにファイル拡張子ごとのAIプロンプトを定義できます:
+`prompts.yaml`ファイルにファイル拡張子ごとのAIプロンプトを定義できます。
+変換するファイルに応じて変更してください:
 
 ```yaml
 default:
@@ -157,27 +168,6 @@ docx:
   system: "You are an expert in formatting Word documents as clean markdown."
   user: "Convert this Word document content to well-structured markdown, preserving headings, lists, and emphasis:\n\n{content}"
 ```
-
-## 開発者向け
-
-### 新しいコンバーターの追加
-
-新しいファイル形式のコンバーターを追加するには:
-
-1. `converter/converter_interface.py`で定義されたインターフェースを実装する
-2. 必要なメソッドを実装:
-   - `convert_file_to_markdown(file_path)`
-   - `save_markdown(markdown_content, output_path)`
-3. `converter/__init__.py`に新しいコンバーターを追加
-
-### 新しいフォーマッターの追加
-
-新しいAIフォーマッターを追加するには:
-
-1. `formatter/formatter_interface.py`で定義されたインターフェースを実装する
-2. 必要なメソッドを実装:
-   - `format_markdown(markdown_content, file_ext, max_workers)`
-3. `formatter/__init__.py`に新しいフォーマッターを追加
 
 ## ライセンス
 
